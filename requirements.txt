@@ -1,0 +1,4 @@
+docopt
+black
+websockets
+flake8
