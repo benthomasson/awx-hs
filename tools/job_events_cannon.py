@@ -5,12 +5,14 @@ Usage:
     job_events_cannon [options]
 
 Options:
-    -h, --help                       Show this page
-    -c=<count>, --count=<count>      Number of events to fire [default: 1000]
-    --debug                          Show debug logging
-    --verbose                        Show verbose logging
-    --websocket-address=<address>    Address of the websocket server [default: ws://localhost:8080/api/ws2]
-    --job-id=<id>                    Job ID to send events for
+    -h, --help                        Show this page
+    -c=<count>, --count=<count>       Number of events to fire [default: 1000]
+    -w=<workers>, --workers=<workers> Number of workers to use [default: 1]
+    --debug                           Show debug logging
+    --verbose                         Show verbose logging
+    --websocket-address=<address>     Address of the websocket server [default: ws://localhost:8080/api/ws2]
+    --job-id=<id>                     Job ID to send events for
+    --stdout=<stdout>                 Stdout to send [default: test]
 """
 from docopt import docopt
 import asyncio
@@ -19,23 +21,29 @@ import sys
 import websockets
 import json
 import uuid
+import time
+from multiprocessing import Pool
 
 logger = logging.getLogger("job_events_cannon")
 
 
-async def fire(websocket_address, c, job_id):
-    logger.info("Firing %s events at %s", c, websocket_address)
+async def fire(websocket_address, c, job_id, stdout, worker_id):
+    logger.info("Worker %s Firing %s events at %s", worker_id, c, websocket_address)
     event = json.dumps(
         {
             "type": "AnsibleEvent",
-            "event": {"stdout": "test", "job_id": job_id, "counter": 1, "type": "x"},
+            "event": {"stdout": stdout, "job_id": job_id, "counter": 1, "type": "x"},
         }
     )
     print("Event: %s", event)
-    async for websocket in websockets.connect(websocket_address):
+    async with websockets.connect(websocket_address) as websocket:
         for i in range(c):
             await websocket.send(event)
 
+
+#def worker(websocket_address, c, job_id, stdout, worker_id):
+def worker(*args):
+    asyncio.run(fire(*args[0]))
 
 def main(args=None):
     if args is None:
@@ -51,7 +59,20 @@ def main(args=None):
     job_id = parsed_args["--job-id"]
     if not job_id:
         job_id = str(uuid.uuid4())
-    asyncio.run(fire(websocket_address, int(parsed_args['--count']), job_id))
+    count = int(parsed_args["--count"])
+    workers = int(parsed_args["--workers"])
+    start = time.time()
+    #print([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
+    #with Pool(workers) as p:
+    #    p.map(worker, [(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
+    #asyncio.run(fire(websocket_address, count, job_id, parsed_args['--stdout'], 0))
+    #worker(websocket_address, count, job_id, parsed_args['--stdout'], 0)
+    print([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
+    with Pool(workers) as p:
+        list(p.map(worker, list([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])))
+    end = time.time()
+    print("Time: ", (end - start))
+    print("Events per second: ", (count * workers) / (end - start))
     return 0
 
 
