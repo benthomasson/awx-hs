@@ -41,9 +41,9 @@ async def fire(websocket_address, c, job_id, stdout, worker_id):
             await websocket.send(event)
 
 
-#def worker(websocket_address, c, job_id, stdout, worker_id):
 def worker(*args):
     asyncio.run(fire(*args[0]))
+
 
 def main(args=None):
     if args is None:
@@ -62,14 +62,29 @@ def main(args=None):
     count = int(parsed_args["--count"])
     workers = int(parsed_args["--workers"])
     start = time.time()
-    #print([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
-    #with Pool(workers) as p:
+    # print([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
+    # with Pool(workers) as p:
     #    p.map(worker, [(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
-    #asyncio.run(fire(websocket_address, count, job_id, parsed_args['--stdout'], 0))
-    #worker(websocket_address, count, job_id, parsed_args['--stdout'], 0)
-    print([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])
+    # asyncio.run(fire(websocket_address, count, job_id, parsed_args['--stdout'], 0))
+    # worker(websocket_address, count, job_id, parsed_args['--stdout'], 0)
+    print(
+        [
+            (websocket_address, count, job_id, parsed_args["--stdout"], i)
+            for i in range(workers)
+        ]
+    )
     with Pool(workers) as p:
-        list(p.map(worker, list([(websocket_address, count, job_id, parsed_args["--stdout"], i) for i in range(workers)])))
+        list(
+            p.map(
+                worker,
+                list(
+                    [
+                        (websocket_address, count, job_id, parsed_args["--stdout"], i)
+                        for i in range(workers)
+                    ]
+                ),
+            )
+        )
     end = time.time()
     print("Time: ", (end - start))
     print("Events per second: ", (count * workers) / (end - start))

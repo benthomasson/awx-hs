@@ -2,3 +2,5 @@ docopt
 black
 websockets
 flake8
+redis
+aioredis
